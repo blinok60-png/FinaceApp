@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Финансы</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0c0c0c;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .drawer {
+            position: fixed; left: -280px; top: 0; width: 280px; height: 100%;
+            background: #151515; z-index: 1000; transition: left 0.3s ease;
+            padding: 24px 16px; display: flex; flex-direction: column;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.5); border-right: 1px solid #222;
+        }
+        .drawer.open { left: 0; }
+        .drawer-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 999;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s;
+        }
+        .drawer-overlay.active { opacity: 1; visibility: visible; }
+        .drawer h3 { margin-bottom: 24px; font-weight: 400; font-size: 20px; color: #fff; letter-spacing: 1px; }
+        .drawer nav { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .drawer nav .menu-item {
+            display: block; background: #1a1a1a; border: 1px solid #222; border-radius: 10px;
+            padding: 14px 16px; color: #ccc; font-size: 15px; cursor: pointer;
+            transition: all 0.2s; text-decoration: none;
+        }
+        .menu-item:hover, .menu-item.active { background: #1e1e1e; border-color: #333; color: #fff; }
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; background: #151515; border-bottom: 1px solid #222;
+        }
+        .menu-btn, .top-action {
+            background: none; border: none; font-size: 24px; cursor: pointer;
+            color: #ccc; padding: 6px; line-height: 1; transition: color 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .menu-btn:hover, .top-action:hover { color: #fff; }
+        .balance { font-weight: 600; font-size: 32px; letter-spacing: 0.5px; }
+        .emoji-rotator {
+            font-size: 24px; min-width: 32px; text-align: center;
+            animation: moneyPulse 2s infinite ease-in-out;
+        }
+        @keyframes moneyPulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .main-content { height: calc(100vh - 80px); overflow-y: auto; padding: 0 16px; -webkit-overflow-scrolling: touch; }
+        .quick-add { padding-top: 20px; }
+        .type-switch {
+            display: flex; background: #1a1a1a; border-radius: 10px; overflow: hidden;
+            margin-bottom: 20px; border: 1px solid #222;
+        }
+        .type-btn {
+            flex: 1; padding: 12px; text-align: center; font-size: 14px; font-weight: 500;
+            background: transparent; border: none; color: #888; cursor: pointer;
+            transition: all 0.2s; letter-spacing: 1px;
+        }
+        .type-btn.active { background: #2196F3; color: #fff; border-radius: 10px; }
+        .date-input {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 10px; padding: 12px 14px;
+            font-size: 15px; color: #fff; margin-bottom: 20px; width: 100%; outline: none; color-scheme: dark;
+        }
+        .amount-input {
+            width: 100%; background: transparent; border: none; text-align: center;
+            font-size: 40px; font-weight: 300; color: #fff; outline: none;
+            caret-color: #2196F3; margin-bottom: 20px; padding: 8px; letter-spacing: 2px;
+        }
+        .amount-input::placeholder { color: #444; }
+        .categories { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; justify-content: center; }
+        .cat-btn {
+            background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px;
+            padding: 10px 18px; font-size: 14px; cursor: pointer; transition: all 0.2s;
+            color: #aaa; letter-spacing: 0.5px; font-weight: 400;
+        }
+        .cat-btn.selected { background: #0d2137; border-color: #2196F3; color: #2196F3; }
+        .limit-info {
+            font-size: 14px; color: #aaa; margin-bottom: 16px; text-align: center;
+            display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+        }
+        .limit-info .spent { color: #ff5252; }
+        .limit-info .remaining { color: #4caf50; }
+        .add-btn {
+            width: 100%; background: #2196F3; border: none; border-radius: 12px;
+            padding: 16px; font-size: 16px; font-weight: 500; color: #fff;
+            cursor: pointer; transition: background 0.2s; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .add-btn:disabled { background: #1a3a4a; color: #555; pointer-events: none; }
+        .feedback { margin-top: 14px; font-size: 14px; color: #4caf50; text-align: center; height: 20px; }
+        .screen-header { display: flex; align-items: center; padding: 14px 0; gap: 12px; }
+        .back-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #ccc; padding: 6px; }
+        .screen-title { font-size: 20px; font-weight: 400; flex: 1; }
+        .period-filter { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .period-btn {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 8px; padding: 8px 14px;
+            font-size: 13px; color: #aaa; cursor: pointer; transition: 0.2s;
+        }
+        .period-btn.active { background: #0d2137; border-color: #2196F3; color: #2196F3; }
+        .custom-period { display: flex; gap: 8px; margin-top: 8px; width: 100%; flex-wrap: wrap; }
+        .custom-period input[type="date"] {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 8px; padding: 8px 12px;
+            font-size: 14px; color: #fff; outline: none; flex: 1;
+        }
+        .custom-period button {
+            background: #2196F3; border: none; border-radius: 8px; padding: 8px 16px;
+            color: #fff; font-size: 14px; cursor: pointer;
+        }
+        .summary-block {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 10px; padding: 14px;
+            margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px;
+        }
+        .summary-item { flex: 1 1 100px; }
+        .summary-label { font-size: 12px; color: #777; margin-bottom: 4px; }
+        .summary-value { font-size: 16px; font-weight: 500; }
+        .summary-value.positive { color: #4caf50; }
+        .summary-value.negative { color: #ff5252; }
+        .date-group { margin-bottom: 20px; }
+        .date-label {
+            font-size: 13px; color: #777; margin-bottom: 6px; padding-left: 8px;
+            text-transform: uppercase; letter-spacing: 1px; font-weight: 500;
+        }
+        .expense-card {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 10px; padding: 12px 14px;
+            margin-bottom: 4px; display: flex; align-items: center; cursor: pointer;
+            transition: background 0.2s; position: relative;
+        }
+        .expense-card:active { background: #222; }
+        .expense-info { flex: 1; }
+        .expense-amount { font-size: 15px; font-weight: 500; }
+        .expense-amount.income { color: #4caf50; }
+        .expense-amount.expense { color: #ff5252; }
+        .expense-amount.debt { color: #ff9800; }
+        .expense-amount.asset { color: #2196F3; }
+        .expense-context { background: none; border: none; color: #666; font-size: 18px; padding: 4px; cursor: pointer; }
+        .alarm-badge {
+            background: #3e1a1a; border: 1px solid #ff5252; border-radius: 10px;
+            padding: 12px 14px; margin: 4px 0 8px; display: flex; align-items: center;
+            justify-content: space-between; cursor: pointer; color: #ff8a80; font-weight: 500; font-size: 15px;
+        }
+        .alarm-badge .alarm-text { display: flex; align-items: center; gap: 8px; }
+        .alarm-badge .alarm-amount { color: #ff5252; font-weight: 600; }
+        .status-cards { display: flex; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+        .status-card {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 12px; padding: 18px 16px;
+            flex: 1 1 120px; text-align: center;
+        }
+        .status-card .label { font-size: 12px; color: #777; text-transform: uppercase; margin-bottom: 6px; }
+        .status-card .value { font-size: 22px; font-weight: 500; }
+        .status-card .value.money { color: #4caf50; }
+        .status-card .value.debt { color: #ff9800; }
+        .status-card .value.asset { color: #2196F3; }
+        .action-row { display: flex; gap: 12px; margin: 20px 0; }
+        .action-btn {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 14px 18px;
+            color: #ccc; font-size: 14px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center;
+        }
+        .action-btn:hover { background: #222; }
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            background: #1a1a1a; border: 1px solid #333; border-radius: 20px; padding: 24px;
+            width: 85%; max-width: 360px; z-index: 2000; opacity: 0; visibility: hidden;
+            transition: all 0.2s; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        .modal.active { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1); }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
+            z-index: 1999; opacity: 0; visibility: hidden;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal h3 { margin-bottom: 16px; font-weight: 400; color: #fff; }
+        .modal input, .modal select {
+            width: 100%; background: #111; border: 1px solid #333; border-radius: 10px;
+            padding: 12px; font-size: 16px; color: #fff; margin-bottom: 12px; outline: none;
+        }
+        .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+        .modal-buttons button { padding: 10px 24px; border-radius: 10px; border: none; font-size: 14px; cursor: pointer; }
+        .btn-cancel { background: #222; color: #ccc; }
+        .btn-save { background: #2196F3; color: #fff; }
+        .spending-card {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 10px; padding: 14px;
+            margin-bottom: 8px; display: flex; flex-wrap: wrap; align-items: center;
+        }
+        .spending-card .cat-name { font-size: 16px; flex: 1; }
+        .spending-card .cat-amount { font-size: 16px; font-weight: 500; color: #ff5252; }
+        .progress-bar {
+            width: 100%; height: 6px; background: #2a2a2a; border-radius: 3px; margin-top: 8px;
+        }
+        .progress-fill {
+            height: 100%; border-radius: 3px; background: #2196F3;
+        }
+        .sort-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+        .sort-btn {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 8px; padding: 8px 14px;
+            font-size: 13px; color: #aaa; cursor: pointer; transition: 0.2s;
+        }
+        .sort-btn.active { background: #0d2137; border-color: #2196F3; color: #2196F3; }
+        .cat-manager-header { display: flex; align-items: center; margin-bottom: 16px; }
+        .cat-type-switch { display: flex; background: #1a1a1a; border-radius: 10px; overflow: hidden; border: 1px solid #222; }
+        .cat-type-option {
+            flex: 1; padding: 10px 16px; text-align: center; font-size: 14px; font-weight: 500;
+            background: transparent; border: none; color: #888; cursor: pointer; transition: 0.2s;
+        }
+        .cat-type-option.active { background: #2196F3; color: #fff; border-radius: 10px; }
+        .cat-tiles { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .cat-tile {
+            background: #1a1a1a; border: 1px solid #222; border-radius: 12px;
+            padding: 10px 14px; display: flex; align-items: center; gap: 12px; font-size: 15px; color: #ccc;
+        }
+        .cat-tile .cat-actions { display: flex; gap: 6px; }
+        .cat-tile .edit-cat, .cat-tile .delete-cat {
+            background: none; border: none; color: #888; font-size: 16px; cursor: pointer;
+        }
+        .cat-tile .delete-cat { color: #ff5252; }
+        .add-cat-btn {
+            background: #2196F3; border: none; border-radius: 12px; padding: 12px 20px;
+            color: #fff; font-size: 14px; cursor: pointer; width: 100%; text-align: center;
+        }
+        .plan-tabs { display: flex; background: #1a1a1a; border-radius: 10px; overflow: hidden; margin-bottom: 20px; border: 1px solid #222; }
+        .plan-tab {
+            flex: 1; padding: 12px; text-align: center; font-size: 14px; font-weight: 500;
+            background: transparent; border: none; color: #888; cursor: pointer; transition: 0.2s;
+        }
+        .plan-tab.active { background: #2196F3; color: #fff; border-radius: 10px; }
+        .piggy-list { display: flex; flex-direction: column; gap: 12px; }
+        .piggy-card { background: #1a1a1a; border: 1px solid #222; border-radius: 12px; padding: 16px; }
+        .piggy-card .piggy-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .piggy-name { font-size: 16px; font-weight: 500; }
+        .piggy-actions button { background: none; border: none; color: #888; font-size: 16px; cursor: pointer; margin-left: 8px; }
+        .piggy-bar { height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+        .piggy-fill { height: 100%; background: #2196F3; border-radius: 4px; }
+        .piggy-stats { display: flex; justify-content: space-between; font-size: 13px; color: #aaa; }
+        .add-piggy-btn {
+            background: #2196F3; border: none; border-radius: 12px; padding: 14px;
+            color: #fff; font-size: 14px; cursor: pointer; width: 100%; margin-top: 16px;
+        }
+        @media (max-width: 400px) {
+            .amount-input { font-size: 32px; }
+            .status-cards { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="drawer-overlay" id="overlay" onclick="toggleDrawer(false)"></div>
+<aside class="drawer" id="drawer">
+    <h3>Финансы</h3>
+    <nav>
+        <div class="menu-item" onclick="navigate('home')">Главная</div>
+        <div class="menu-item" onclick="navigate('history')">История</div>
+        <div class="menu-item" onclick="navigate('status')">Состояние</div>
+        <div class="menu-item" onclick="navigate('categorySpending')">Траты по категориям</div>
+        <div class="menu-item" onclick="navigate('planning')">Планирование</div>
+        <div class="menu-item" onclick="navigate('categories')">Категории</div>
+        <div class="menu-item" onclick="navigate('about')">О приложении</div>
+    </nav>
+    <div style="margin-top: auto; font-size: 12px; color: #555;">v2.8 · Бюджеты</div>
+</aside>
+
+<div class="top-bar">
+    <button class="menu-btn" onclick="toggleDrawer(true)">☰</button>
+    <div class="balance" id="balanceDisplay">0 ₽</div>
+    <div id="topActionContainer">
+        <button class="top-action" id="quickIncomeBtn" onclick="quickAddIncome()">+</button>
+        <div class="emoji-rotator" id="emojiRotator" style="display:none;">💸</div>
+    </div>
+</div>
+
+<div class="main-content" id="mainContent">
+    <!-- Главный экран -->
+    <div id="homeScreen" class="quick-add">
+        <div class="type-switch">
+            <button class="type-btn active" data-type="expense" onclick="switchType('expense', this)">Расход</button>
+            <button class="type-btn" data-type="income" onclick="switchType('income', this)">Доход</button>
+        </div>
+        <input type="date" class="date-input" id="dateInput">
+        <input type="number" class="amount-input" id="amountInput" placeholder="0" step="0.01" min="0" inputmode="decimal">
+        <div class="categories" id="categoryContainer"></div>
+        <div class="limit-info" id="limitInfo"></div>
+        <button class="add-btn" id="addBtn" disabled>Добавить расход</button>
+        <div class="feedback" id="feedback"></div>
+    </div>
+
+    <!-- История -->
+    <div id="historyScreen" style="display: none;">
+        <div class="screen-header">
+            <button class="back-btn" onclick="navigate('home')">←</button>
+            <div class="screen-title">История</div>
+        </div>
+        <div class="period-filter" id="historyPeriodFilter">
+            <button class="period-btn active" data-period="all" onclick="setHistoryPeriod('all', this)">Всё</button>
+            <button class="period-btn" data-period="day" onclick="setHistoryPeriod('day', this)">День</button>
+            <button class="period-btn" data-period="week" onclick="setHistoryPeriod('week', this)">Неделя</button>
+            <button class="period-btn" data-period="month" onclick="setHistoryPeriod('month', this)">Месяц</button>
+            <button class="period-btn" data-period="year" onclick="setHistoryPeriod('year', this)">Год</button>
+            <button class="period-btn" data-period="custom" onclick="setHistoryPeriod('custom', this)">Произвольный</button>
+        </div>
+        <div class="custom-period" id="historyCustomPeriod" style="display: none;">
+            <input type="date" id="historyStartDate" placeholder="С">
+            <input type="date" id="historyEndDate" placeholder="По">
+            <button onclick="applyCustomHistory()">Применить</button>
+        </div>
+        <div class="summary-block" id="historySummary"></div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- Состояние -->
+    <div id="statusScreen" style="display: none;">
+        <div class="screen-header">
+            <button class="back-btn" onclick="navigate('home')">←</button>
+            <div class="screen-title">Состояние</div>
+        </div>
+        <div class="period-filter" id="statusPeriodFilter">
+            <button class="period-btn active" data-period="all" onclick="setStatusPeriod('all', this)">Всё</button>
+            <button class="period-btn" data-period="day" onclick="setStatusPeriod('day', this)">День</button>
+            <button class="period-btn" data-period="week" onclick="setStatusPeriod('week', this)">Неделя</button>
+            <button class="period-btn" data-period="month" onclick="setStatusPeriod('month', this)">Месяц</button>
+            <button class="period-btn" data-period="year" onclick="setStatusPeriod('year', this)">Год</button>
+            <button class="period-btn" data-period="custom" onclick="setStatusPeriod('custom', this)">Произвольный</button>
+        </div>
+        <div class="custom-period" id="statusCustomPeriod" style="display: none;">
+            <input type="date" id="statusStartDate" placeholder="С">
+            <input type="date" id="statusEndDate" placeholder="По">
+            <button onclick="applyCustomStatus()">Применить</button>
+        </div>
+        <div class="status-cards">
+            <div class="status-card"><div class="label">Деньги</div><div class="value money" id="moneyValue">0</div></div>
+            <div class="status-card"><div class="label">Долги</div><div class="value debt" id="debtValue">0</div></div>
+            <div class="status-card"><div class="label">Активы</div><div class="value asset" id="assetValue">0</div></div>
+        </div>
+        <div style="text-align:center;margin:8px 0 16px;font-size:16px;color:#aaa;">
+            Чистый капитал: <span id="netWorth" style="font-weight:500;">0</span>
+        </div>
+        <div class="action-row">
+            <button class="action-btn" onclick="openDebtModal()">+ Долг</button>
+            <button class="action-btn" onclick="openAssetModal()">+ Актив</button>
+        </div>
+    </div>
+
+    <!-- Траты по категориям -->
+    <div id="categorySpendingScreen" style="display: none;">
+        <div class="screen-header">
+            <button class="back-btn" onclick="navigate('home')">←</button>
+            <div class="screen-title">Траты по категориям</div>
+        </div>
+        <div class="period-filter" id="spendingPeriodFilter">
+            <button class="period-btn active" data-period="all" onclick="setSpendingPeriod('all', this)">Всё</button>
+            <button class="period-btn" data-period="day" onclick="setSpendingPeriod('day', this)">День</button>
+            <button class="period-btn" data-period="week" onclick="setSpendingPeriod('week', this)">Неделя</button>
+            <button class="period-btn" data-period="month" onclick="setSpendingPeriod('month', this)">Месяц</button>
+            <button class="period-btn" data-period="year" onclick="setSpendingPeriod('year', this)">Год</button>
+            <button class="period-btn" data-period="custom" onclick="setSpendingPeriod('custom', this)">Произвольный</button>
+        </div>
+        <div class="custom-period" id="spendingCustomPeriod" style="display: none;">
+            <input type="date" id="spendingStartDate" placeholder="С">
+            <input type="date" id="spendingEndDate" placeholder="По">
+            <button onclick="applyCustomSpending()">Применить</button>
+        </div>
+        <div class="sort-btns">
+            <button class="sort-btn active" data-sort="desc" onclick="setSpendingSort('desc', this)">Сначала большие</button>
+            <button class="sort-btn" data-sort="asc" onclick="setSpendingSort('asc', this)">Сначала маленькие</button>
+        </div>
+        <div id="spendingList"></div>
+    </div>
+
+    <!-- Планирование -->
+    <div id="planningScreen" style="display: none;">
+        <div class="screen-header">
+            <button class="back-btn" onclick="navigate('home')">←</button>
+            <div class="screen-title">Планирование</div>
+        </div>
+        <div class="plan-tabs">
+            <button class="plan-tab active" data-tab="average" onclick="switchPlanTab('average', this)">Средний чек</button>
+            <button class="plan-tab" data-tab="piggy" onclick="switchPlanTab('piggy', this)">Копилки</button>
+            <button class="plan-tab" data-tab="forecast" onclick="switchPlanTab('forecast', this)">Прогноз</button>
+        </div>
+        <div id="planAverageTab">
+            <div class="period-filter" id="averagePeriodFilter">
+                <button class="period-btn active" data-period="all" onclick="setAveragePeriod('all', this)">Всё</button>
+                <button class="period-btn" data-period="day" onclick="setAveragePeriod('day', this)">День</button>
+                <button class="period-btn" data-period="week" onclick="setAveragePeriod('week', this)">Неделя</button>
+                <button class="period-btn" data-period="month" onclick="setAveragePeriod('month', this)">Месяц</button>
+                <button class="period-btn" data-period="year" onclick="setAveragePeriod('year', this)">Год</button>
+                <button class="period-btn" data-period="custom" onclick="setAveragePeriod('custom', this)">Произвольный</button>
+            </div>
+            <div class="custom-period" id="averageCustomPeriod" style="display: none;">
+                <input type="date" id="averageStartDate" placeholder="С">
+                <input type="date" id="averageEndDate" placeholder="По">
+                <button onclick="applyCustomAverage()">Применить</button>
+            </div>
+            <div id="averageList"></div>
+        </div>
+        <div id="planPiggyTab" style="display: none;">
+            <div class="piggy-list" id="piggyList"></div>
+            <button class="add-piggy-btn" onclick="openAddPiggyModal()">+ Новая копилка</button>
+        </div>
+        <div id="planForecastTab" style="display: none;">
+            <div class="summary-block" id="forecastBlock">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- Категории -->
+    <div id="categoriesScreen" style="display: none;">
+        <div class="screen-header">
+            <button class="back-btn" onclick="navigate('home')">←</button>
+            <div class="screen-title">Категории</div>
+        </div>
+        <div class="cat-manager-header">
+            <div class="cat-type-switch">
+                <button class="cat-type-option active" data-type="expense" onclick="switchCatType('expense', this)">Расходы</button>
+                <button class="cat-type-option" data-type="income" onclick="switchCatType('income', this)">Доходы</button>
+            </div>
+        </div>
+        <div class="cat-tiles" id="catTiles"></div>
+        <button class="add-cat-btn" onclick="openAddCategoryModal()">+ Добавить категорию</button>
+    </div>
+</div>
+
+<!-- Модалки -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+<div class="modal" id="editModal">
+    <h3>Редактировать</h3>
+    <input type="number" id="editAmount" placeholder="Сумма" step="0.01">
+    <div id="editCategories"></div>
+    <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+        <button class="btn-save" onclick="saveEdit()">Сохранить</button>
+    </div>
+</div>
+<div class="modal" id="debtAssetModal">
+    <h3 id="debtAssetTitle">Добавить</h3>
+    <input type="number" id="debtAssetAmount" placeholder="Сумма (отрицательная для уменьшения)" step="0.01">
+    <input type="date" id="debtAssetDate">
+    <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeDebtAssetModal()">Отмена</button>
+        <button class="btn-save" onclick="saveDebtAsset()">Сохранить</button>
+    </div>
+</div>
+<div class="modal" id="addCategoryModal">
+    <h3 id="addCategoryModalTitle">Новая категория</h3>
+    <input type="text" id="newCatName" placeholder="Название категории">
+    <input type="number" id="newCatLimit" placeholder="Месячный лимит (необяз.)" step="0.01" min="0">
+    <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeAddCategoryModal()">Отмена</button>
+        <button class="btn-save" onclick="addCategory()">Добавить</button>
+    </div>
+</div>
+<div class="modal" id="editCategoryModal">
+    <h3>Редактировать категорию</h3>
+    <input type="text" id="editCatName" placeholder="Название">
+    <input type="number" id="editCatLimit" placeholder="Месячный лимит" step="0.01" min="0">
+    <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeEditCategoryModal()">Отмена</button>
+        <button class="btn-save" onclick="saveEditCategory()">Сохранить</button>
+    </div>
+</div>
+<div class="modal" id="piggyModal">
+    <h3 id="piggyModalTitle">Новая копилка</h3>
+    <input type="text" id="piggyName" placeholder="Название">
+    <input type="number" id="piggyTarget" placeholder="Целевая сумма" step="0.01">
+    <input type="number" id="piggyCurrent" placeholder="Текущая сумма" step="0.01" value="0">
+    <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closePiggyModal()">Отмена</button>
+        <button class="btn-save" onclick="savePiggy()">Сохранить</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const STORAGE = {
+            expenses: 'fin_exp_v5',
+            expenseCats: 'fin_exp_cats',
+            incomeCats: 'fin_inc_cats',
+            piggyBanks: 'fin_piggy_v1',
+            limits: 'fin_limits_v1'
+        };
+        const MAX_JSON_SIZE = 3 * 1024 * 1024;
+
+        function safeJSONParse(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw === null) return fallback;
+                return JSON.parse(raw);
+            } catch (e) {
+                return fallback;
+            }
+        }
+
+        let expenses = safeJSONParse(STORAGE.expenses, []);
+        let expenseCategories = safeJSONParse(STORAGE.expenseCats, ['Еда', 'Транспорт', 'Дом', 'Связь', 'Развлечения', 'Прочее']);
+        let incomeCategories = safeJSONParse(STORAGE.incomeCats, ['Зарплата', 'Подарок', 'Подработка', 'Прочее']);
+        let categoryLimits = safeJSONParse(STORAGE.limits, {});
+        let piggyBanks = safeJSONParse(STORAGE.piggyBanks, []);
+
+        let currentType = 'expense';
+        let selectedCategory = null;
+        let editIndex = -1;
+        let currentDebtAssetType = 'debt';
+        let currentCatManageType = 'expense';
+        let currentPlanTab = 'average';
+        let historyPeriod = 'all', historyCustomStart = '', historyCustomEnd = '';
+        let statusPeriod = 'all', statusCustomStart = '', statusCustomEnd = '';
+        let spendingPeriod = 'all', spendingCustomStart = '', spendingCustomEnd = '';
+        let averagePeriod = 'all', averageCustomStart = '', averageCustomEnd = '';
+        let spendingSortOrder = 'desc';
+        let currentScreen = 'home';
+        let editPiggyId = null;
+        let editingCategory = null;
+
+        const $ = (id) => document.getElementById(id);
+        const balanceDisplay = $('balanceDisplay');
+        const amountInput = $('amountInput');
+        const addBtn = $('addBtn');
+        const feedback = $('feedback');
+        const categoryContainer = $('categoryContainer');
+        const limitInfo = $('limitInfo');
+        const dateInput = $('dateInput');
+        const homeScreen = $('homeScreen');
+        const historyScreen = $('historyScreen');
+        const statusScreen = $('statusScreen');
+        const categorySpendingScreen = $('categorySpendingScreen');
+        const planningScreen = $('planningScreen');
+        const categoriesScreen = $('categoriesScreen');
+        const historyList = $('historyList');
+        const historySummary = $('historySummary');
+        const drawer = $('drawer');
+        const overlay = $('overlay');
+        const modalOverlay = $('modalOverlay');
+        const editModal = $('editModal');
+        const editAmount = $('editAmount');
+        const editCategoriesDiv = $('editCategories');
+        const debtAssetModal = $('debtAssetModal');
+        const debtAssetTitle = $('debtAssetTitle');
+        const debtAssetAmount = $('debtAssetAmount');
+        const debtAssetDate = $('debtAssetDate');
+        const moneyValueEl = $('moneyValue');
+        const debtValueEl = $('debtValue');
+        const assetValueEl = $('assetValue');
+        const netWorthEl = $('netWorth');
+        const quickIncomeBtn = $('quickIncomeBtn');
+        const emojiRotator = $('emojiRotator');
+        const spendingList = $('spendingList');
+        const catTiles = $('catTiles');
+        const addCategoryModal = $('addCategoryModal');
+        const newCatName = $('newCatName');
+        const newCatLimit = $('newCatLimit');
+        const addCategoryModalTitle = $('addCategoryModalTitle');
+        const editCategoryModal = $('editCategoryModal');
+        const editCatName = $('editCatName');
+        const editCatLimit = $('editCatLimit');
+        const piggyModal = $('piggyModal');
+        const piggyModalTitle = $('piggyModalTitle');
+        const piggyName = $('piggyName');
+        const piggyTarget = $('piggyTarget');
+        const piggyCurrent = $('piggyCurrent');
+        const piggyList = $('piggyList');
+        const averageList = $('averageList');
+        const forecastBlock = $('forecastBlock');
+
+        dateInput.valueAsDate = new Date();
+
+        const moneyEmojis = ['💸', '💰', '💵', '💴', '💶', '💷', '🪙'];
+        let emojiIndex = 0;
+        emojiRotator.textContent = moneyEmojis[0];
+        setInterval(() => {
+            if (currentScreen !== 'home') {
+                emojiIndex = (emojiIndex + 1) % moneyEmojis.length;
+                emojiRotator.textContent = moneyEmojis[emojiIndex];
+                emojiRotator.style.animation = 'none';
+                void emojiRotator.offsetWidth;
+                emojiRotator.style.animation = 'moneyPulse 2s infinite ease-in-out';
+            }
+        }, 2000);
+
+        function updateTopAction() {
+            if (currentScreen === 'home') {
+                quickIncomeBtn.style.display = 'flex';
+                emojiRotator.style.display = 'none';
+            } else {
+                quickIncomeBtn.style.display = 'none';
+                emojiRotator.style.display = 'block';
+            }
+        }
+
+        function getCurrentCategories() {
+            return currentType === 'expense' ? expenseCategories : incomeCategories;
+        }
+
+        function renderCategories() {
+            if (!categoryContainer) return;
+            const cats = getCurrentCategories();
+            categoryContainer.innerHTML = cats.map(cat =>
+                `<button class="cat-btn" onclick="selectCategory('${cat}', this)">${cat}</button>`
+            ).join('');
+            selectedCategory = null;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+            validateAddButton();
+            updateLimitInfo();
+        }
+
+        window.selectCategory = function(catName, btn) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedCategory = catName;
+            validateAddButton();
+            updateLimitInfo();
+        };
+
+        function updateLimitInfo() {
+            if (!limitInfo) return;
+            if (currentType !== 'expense' || !selectedCategory) {
+                limitInfo.innerHTML = '';
+                return;
+            }
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const spent = expenses
+                .filter(e => e.type === 'expense' && e.category === selectedCategory && new Date(e.date) >= startOfMonth)
+                .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+            const limit = categoryLimits[selectedCategory] || 0;
+            if (limit > 0) {
+                const remaining = limit - spent;
+                const remainingClass = remaining >= 0 ? 'remaining' : 'spent';
+                limitInfo.innerHTML = `
+                    <span>Потрачено: <span class="spent">${spent.toFixed(2)}</span> / ${limit.toFixed(2)} ₽</span>
+                    <span class="${remainingClass}">Осталось: ${remaining.toFixed(2)} ₽</span>
+                    ${remaining < 0 ? '<span style="color:#ff5252;">⚠️ Превышен!</span>' : ''}
+                `;
+            } else {
+                limitInfo.innerHTML = `<span>Потрачено в этом месяце: <span class="spent">${spent.toFixed(2)} ₽</span></span>`;
+            }
+        }
+
+        window.switchType = function(type, btn) {
+            currentType = type;
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            addBtn.textContent = type === 'expense' ? 'Добавить расход' : 'Добавить доход';
+            selectedCategory = null;
+            renderCategories();
+            amountInput.focus();
+        };
+
+        function validateAddButton() {
+            const amount = parseFloat(amountInput.value);
+            addBtn.disabled = !(amount > 0 && selectedCategory);
+        }
+
+        amountInput.addEventListener('input', validateAddButton);
+
+        window.addOperation = function() {
+            const amount = parseFloat(amountInput.value);
+            if (isNaN(amount) || amount <= 0) return;
+            if (!selectedCategory) { showFeedback('Выберите категорию'); return; }
+            const amountStored = currentType === 'expense' ? -amount : amount;
+            expenses.push({
+                amount: amountStored,
+                type: currentType,
+                category: selectedCategory,
+                date: dateInput.value || new Date().toISOString().split('T')[0]
+            });
+            saveAndUpdate();
+            amountInput.value = '';
+            selectedCategory = null;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+            addBtn.disabled = true;
+            updateLimitInfo();
+            showFeedback('✓ Добавлено');
+            amountInput.focus();
+        };
+
+        addBtn.addEventListener('click', addOperation);
+
+        window.quickAddIncome = function() {
+            currentType = 'income';
+            document.querySelectorAll('.type-btn').forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.type === 'income') b.classList.add('active');
+            });
+            addBtn.textContent = 'Добавить доход';
+            selectedCategory = null;
+            renderCategories();
+            amountInput.value = '';
+            amountInput.focus();
+        };
+
+        function showFeedback(msg) {
+            feedback.textContent = msg;
+            setTimeout(() => feedback.textContent = '', 2000);
+        }
+
+        function getMoneyBalance(exps = expenses) {
+            return exps.reduce((sum, e) => (e.type === 'income' || e.type === 'expense') ? sum + e.amount : sum, 0);
+        }
+
+        function getDebtBalance(exps = expenses) {
+            return exps.reduce((sum, e) => e.type === 'debt' ? sum + e.amount : sum, 0);
+        }
+
+        function getAssetBalance(exps = expenses) {
+            return exps.reduce((sum, e) => e.type === 'asset' ? sum + e.amount : sum, 0);
+        }
+
+        function updateAllBalances() {
+            const money = getMoneyBalance();
+            const debt = getDebtBalance();
+            const asset = getAssetBalance();
+            const net = money + asset - debt;
+            balanceDisplay.textContent = `${money.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
+            balanceDisplay.style.color = money >= 0 ? '#4caf50' : '#ff5252';
+            moneyValueEl.textContent = `${money.toFixed(2)} ₽`;
+            debtValueEl.textContent = `${debt.toFixed(2)} ₽`;
+            assetValueEl.textContent = `${asset.toFixed(2)} ₽`;
+            netWorthEl.textContent = `${net.toFixed(2)} ₽`;
+            netWorthEl.style.color = net >= 0 ? '#4caf50' : '#ff5252';
+        }
+
+        function checkStorageQuota() {
+            try {
+                if (JSON.stringify(expenses).length > MAX_JSON_SIZE) {
+                    alert('⚠️ Данных очень много. Рекомендуется экспорт.');
+                }
+            } catch (e) {}
+        }
+
+        function saveAndUpdate() {
+            try {
+                localStorage.setItem(STORAGE.expenses, JSON.stringify(expenses));
+                localStorage.setItem(STORAGE.limits, JSON.stringify(categoryLimits));
+                updateAllBalances();
+                checkStorageQuota();
+            } catch (e) {
+                alert('Ошибка сохранения! Освободите место.');
+            }
+        }
+
+        function filterByPeriod(period, customStart, customEnd) {
+            if (period === 'custom') {
+                if (!customStart && !customEnd) return expenses;
+                const startDate = customStart ? new Date(customStart) : null;
+                const endDate = customEnd ? new Date(customEnd + 'T23:59:59') : null;
+                if (startDate && endDate && startDate > endDate) {
+                    alert('Дата начала не может быть позже даты окончания');
+                    return [];
+                }
+                return expenses.filter(e => {
+                    const d = new Date(e.date);
+                    if (startDate && d < startDate) return false;
+                    if (endDate && d > endDate) return false;
+                    return true;
+                });
+            }
+            const now = new Date();
+            let start = new Date(now);
+            switch(period) {
+                case 'day': start.setHours(0,0,0,0); break;
+                case 'week': start.setDate(now.getDate() - 7); break;
+                case 'month': start.setMonth(now.getMonth() - 1); break;
+                case 'year': start.setFullYear(now.getFullYear() - 1); break;
+                default: return expenses;
+            }
+            return expenses.filter(e => new Date(e.date) >= start);
+        }
+
+        window.navigate = function(screen) {
+            toggleDrawer(false);
+            currentScreen = screen;
+            homeScreen.style.display = 'none';
+            historyScreen.style.display = 'none';
+            statusScreen.style.display = 'none';
+            categorySpendingScreen.style.display = 'none';
+            planningScreen.style.display = 'none';
+            categoriesScreen.style.display = 'none';
+
+            if (screen === 'home') homeScreen.style.display = 'block';
+            else if (screen === 'history') historyScreen.style.display = 'block';
+            else if (screen === 'status') statusScreen.style.display = 'block';
+            else if (screen === 'categorySpending') categorySpendingScreen.style.display = 'block';
+            else if (screen === 'planning') planningScreen.style.display = 'block';
+            else if (screen === 'categories') categoriesScreen.style.display = 'block';
+
+            updateTopAction();
+
+            if (screen === 'history') { resetHistoryPeriod(); renderHistory(); }
+            if (screen === 'status') { resetStatusPeriod(); updateStatusScreen(); }
+            if (screen === 'categorySpending') { resetSpendingPeriod(); renderSpending(); }
+            if (screen === 'planning') { switchPlanTab('average', document.querySelector('.plan-tab[data-tab="average"]')); }
+            if (screen === 'categories') { renderCatTiles(); }
+            if (screen === 'home') { amountInput.focus(); updateLimitInfo(); }
+            if (screen === 'about') showAbout();
+        };
+
+        function showAbout() {
+            const msg = 'Финансы v2.8\nБюджеты и сортировка.\nДанные хранятся локально.';
+            const choice = prompt(`${msg}\n\n1 - Экспорт\n2 - Сброс\n3 - Закрыть`);
+            if (choice === '1') exportData();
+            else if (choice === '2') resetAllData();
+        }
+
+        function exportData() {
+            const data = { expenses, expenseCategories, incomeCategories, limits: categoryLimits, piggyBanks };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'finance_backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Экспортировано.');
+        }
+
+        function resetAllData() {
+            if (confirm('Удалить все данные?')) {
+                localStorage.clear();
+                expenses = [];
+                expenseCategories = ['Еда', 'Транспорт', 'Дом', 'Связь', 'Развлечения', 'Прочее'];
+                incomeCategories = ['Зарплата', 'Подарок', 'Подработка', 'Прочее'];
+                categoryLimits = {};
+                piggyBanks = [];
+                saveAndUpdate();
+                navigate('home');
+            }
+        }
+
+        window.toggleDrawer = function(open) {
+            if (open) { drawer.classList.add('open'); overlay.classList.add('active'); }
+            else { drawer.classList.remove('open'); overlay.classList.remove('active'); }
+        };
+
+        // История
+        window.setHistoryPeriod = function(period, btn) {
+            document.querySelectorAll('#historyPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            historyPeriod = period;
+            $('historyCustomPeriod').style.display = period === 'custom' ? 'flex' : 'none';
+            if (period !== 'custom') { historyCustomStart = ''; historyCustomEnd = ''; renderHistory(); }
+        };
+        window.applyCustomHistory = function() {
+            historyCustomStart = $('historyStartDate').value;
+            historyCustomEnd = $('historyEndDate').value;
+            renderHistory();
+        };
+        function resetHistoryPeriod() {
+            document.querySelectorAll('#historyPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('#historyPeriodFilter [data-period="all"]');
+            if (allBtn) allBtn.classList.add('active');
+            historyPeriod = 'all'; historyCustomStart = ''; historyCustomEnd = '';
+            $('historyCustomPeriod').style.display = 'none';
+        }
+
+        historyList.addEventListener('click', function(e) {
+            const contextBtn = e.target.closest('.expense-context');
+            if (contextBtn) {
+                e.stopPropagation();
+                const card = contextBtn.closest('.expense-card');
+                if (!card) return;
+                const { date, amount, type, category } = card.dataset;
+                const realIndex = expenses.findIndex(e => e.date === date && e.amount === +amount && e.type === type && e.category === category);
+                if (realIndex !== -1) {
+                    const choice = prompt('1 - Редактировать\n2 - Удалить');
+                    if (choice === '1') openEditModal(realIndex);
+                    else if (choice === '2') { if (confirm('Удалить?')) { expenses.splice(realIndex, 1); saveAndUpdate(); renderHistory(); } }
+                }
+            }
+            const alarmBadge = e.target.closest('.alarm-badge');
+            if (alarmBadge) {
+                const details = alarmBadge.getAttribute('data-details');
+                if (details) alert(details);
+            }
+        });
+
+        function renderHistory() {
+            if (!historyList || !historySummary) return;
+            const filtered = filterByPeriod(historyPeriod, historyCustomStart, historyCustomEnd);
+            const summary = calculateSummary(filtered);
+            historySummary.innerHTML = `
+                <div class="summary-item"><div class="summary-label">Доходы</div><div class="summary-value positive">+${summary.income.toFixed(2)} ₽</div></div>
+                <div class="summary-item"><div class="summary-label">Расходы</div><div class="summary-value negative">−${summary.expense.toFixed(2)} ₽</div></div>
+                <div class="summary-item"><div class="summary-label">Долги (изм.)</div><div class="summary-value ${summary.debtChange >= 0 ? 'positive' : 'negative'}">${summary.debtChange.toFixed(2)} ₽</div></div>
+                <div class="summary-item"><div class="summary-label">Активы (изм.)</div><div class="summary-value ${summary.assetChange >= 0 ? 'positive' : 'negative'}">${summary.assetChange.toFixed(2)} ₽</div></div>
+            `;
+            const MAX_DISPLAY = 2000;
+            let displayExpenses = filtered.length > MAX_DISPLAY ? filtered.slice(-MAX_DISPLAY) : filtered;
+            const sorted = [...displayExpenses].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const grouped = new Map();
+            sorted.forEach(exp => {
+                const d = new Date(exp.date);
+                const today = new Date(); today.setHours(0,0,0,0);
+                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                let label;
+                if (d >= today) label = 'Сегодня';
+                else if (d >= yesterday) label = 'Вчера';
+                else label = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+                if (!grouped.has(label)) grouped.set(label, []);
+                grouped.get(label).push(exp);
+            });
+            const monthlyTotals = new Map();
+            displayExpenses.forEach(exp => {
+                const d = new Date(exp.date);
+                const key = `${d.getFullYear()}-${d.getMonth()}`;
+                if (!monthlyTotals.has(key)) monthlyTotals.set(key, { income: 0, expense: 0 });
+                const t = monthlyTotals.get(key);
+                if (exp.type === 'income') t.income += exp.amount;
+                else if (exp.type === 'expense') t.expense += Math.abs(exp.amount);
+            });
+            let html = '';
+            const monthAppeared = new Set();
+            for (const [label, exps] of grouped) {
+                const firstExp = exps[0];
+                const d = new Date(firstExp.date);
+                const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+                if (!monthAppeared.has(monthKey)) {
+                    monthAppeared.add(monthKey);
+                    const monthName = new Date(d.getFullYear(), d.getMonth()).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+                    html += `<div class="date-group"><div class="date-label">${monthName}</div>`;
+                    const totals = monthlyTotals.get(monthKey);
+                    if (totals) {
+                        const diff = totals.income - totals.expense;
+                        if (diff < 0) {
+                            const details = `${monthName}\nДоходы: +${totals.income.toFixed(2)} ₽\nРасходы: −${totals.expense.toFixed(2)} ₽\nУбыток: −${Math.abs(diff).toFixed(2)} ₽`;
+                            html += `<div class="alarm-badge" data-details="${details.replace(/"/g, '&quot;')}"><div class="alarm-text">💀 Жопа</div><div class="alarm-amount">−${Math.abs(diff).toFixed(2)} ₽</div></div>`;
+                        }
+                    }
+                    html += `</div>`;
+                }
+                html += `<div class="date-group"><div class="date-label">${label}</div>`;
+                exps.forEach(exp => {
+                    let amountClass = 'expense', sign = '';
+                    if (exp.type === 'income') { amountClass = 'income'; sign = '+'; }
+                    else if (exp.type === 'debt') { amountClass = 'debt'; sign = exp.amount >= 0 ? '+' : '−'; }
+                    else if (exp.type === 'asset') { amountClass = 'asset'; sign = exp.amount >= 0 ? '+' : '−'; }
+                    else { sign = '−'; amountClass = 'expense'; }
+                    html += `<div class="expense-card" data-date="${exp.date}" data-amount="${exp.amount}" data-type="${exp.type}" data-category="${exp.category}">
+                        <div class="expense-info"><span style="font-size:14px;color:#aaa;">${exp.category || exp.type}</span></div>
+                        <span class="expense-amount ${amountClass}">${sign} ${Math.abs(exp.amount).toFixed(2)} ₽</span>
+                        <button class="expense-context">⋯</button>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            historyList.innerHTML = html;
+        }
+
+        function calculateSummary(exps) {
+            let income = 0, expense = 0, debtChange = 0, assetChange = 0;
+            exps.forEach(e => {
+                if (e.type === 'income') income += e.amount;
+                else if (e.type === 'expense') expense += Math.abs(e.amount);
+                else if (e.type === 'debt') debtChange += e.amount;
+                else if (e.type === 'asset') assetChange += e.amount;
+            });
+            return { income, expense, debtChange, assetChange };
+        }
+
+        function openEditModal(index) {
+            editIndex = index;
+            const exp = expenses[index];
+            editAmount.value = Math.abs(exp.amount);
+            const cats = exp.type === 'expense' ? expenseCategories : (exp.type === 'income' ? incomeCategories : []);
+            editCategoriesDiv.innerHTML = cats.map(cat =>
+                `<span class="cat-option ${cat === exp.category ? 'selected' : ''}" onclick="selectEditCategory('${cat}', this)">${cat}</span>`
+            ).join('');
+            window._editSelectedCategory = exp.category;
+            modalOverlay.classList.add('active');
+            editModal.classList.add('active');
+        }
+        window.selectEditCategory = function(cat, el) {
+            document.querySelectorAll('#editCategories .cat-option').forEach(e => e.classList.remove('selected'));
+            el.classList.add('selected');
+            window._editSelectedCategory = cat;
+        };
+        window.saveEdit = function() {
+            const newAmount = parseFloat(editAmount.value);
+            if (isNaN(newAmount) || newAmount <= 0) return alert('Введите сумму');
+            if (editIndex === -1) return;
+            const exp = expenses[editIndex];
+            const sign = exp.type === 'expense' ? -1 : 1;
+            expenses[editIndex].amount = sign * newAmount;
+            if (window._editSelectedCategory) expenses[editIndex].category = window._editSelectedCategory;
+            saveAndUpdate();
+            closeModal();
+            if (historyScreen.style.display === 'block') renderHistory();
+        };
+        window.closeModal = function() {
+            modalOverlay.classList.remove('active');
+            editModal.classList.remove('active');
+            editIndex = -1;
+        };
+
+        // Долг / Актив
+        window.openDebtModal = function() {
+            currentDebtAssetType = 'debt';
+            debtAssetTitle.textContent = 'Добавить долг';
+            debtAssetAmount.value = '';
+            debtAssetDate.valueAsDate = new Date();
+            debtAssetModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.openAssetModal = function() {
+            currentDebtAssetType = 'asset';
+            debtAssetTitle.textContent = 'Добавить актив';
+            debtAssetAmount.value = '';
+            debtAssetDate.valueAsDate = new Date();
+            debtAssetModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.saveDebtAsset = function() {
+            const amount = parseFloat(debtAssetAmount.value);
+            if (isNaN(amount)) return alert('Введите сумму');
+            expenses.push({
+                amount: amount,
+                type: currentDebtAssetType,
+                category: currentDebtAssetType === 'debt' ? 'Долг' : 'Актив',
+                date: debtAssetDate.value || new Date().toISOString().split('T')[0]
+            });
+            saveAndUpdate();
+            closeDebtAssetModal();
+            if (statusScreen.style.display === 'block') updateStatusScreen();
+        };
+        window.closeDebtAssetModal = function() {
+            debtAssetModal.classList.remove('active');
+            modalOverlay.classList.remove('active');
+        };
+
+        // Состояние
+        window.setStatusPeriod = function(period, btn) {
+            document.querySelectorAll('#statusPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            statusPeriod = period;
+            $('statusCustomPeriod').style.display = period === 'custom' ? 'flex' : 'none';
+            if (period !== 'custom') { statusCustomStart = ''; statusCustomEnd = ''; updateStatusScreen(); }
+        };
+        window.applyCustomStatus = function() {
+            statusCustomStart = $('statusStartDate').value;
+            statusCustomEnd = $('statusEndDate').value;
+            updateStatusScreen();
+        };
+        function resetStatusPeriod() {
+            document.querySelectorAll('#statusPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('#statusPeriodFilter [data-period="all"]');
+            if (allBtn) allBtn.classList.add('active');
+            statusPeriod = 'all'; statusCustomStart = ''; statusCustomEnd = '';
+            $('statusCustomPeriod').style.display = 'none';
+        }
+        function updateStatusScreen() {
+            const filtered = filterByPeriod(statusPeriod, statusCustomStart, statusCustomEnd);
+            const money = getMoneyBalance(filtered);
+            const debt = getDebtBalance(filtered);
+            const asset = getAssetBalance(filtered);
+            const net = money + asset - debt;
+            moneyValueEl.textContent = `${money.toFixed(2)} ₽`;
+            debtValueEl.textContent = `${debt.toFixed(2)} ₽`;
+            assetValueEl.textContent = `${asset.toFixed(2)} ₽`;
+            netWorthEl.textContent = `${net.toFixed(2)} ₽`;
+            netWorthEl.style.color = net >= 0 ? '#4caf50' : '#ff5252';
+        }
+
+        // Траты по категориям
+        window.setSpendingPeriod = function(period, btn) {
+            document.querySelectorAll('#spendingPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            spendingPeriod = period;
+            $('spendingCustomPeriod').style.display = period === 'custom' ? 'flex' : 'none';
+            if (period !== 'custom') { spendingCustomStart = ''; spendingCustomEnd = ''; renderSpending(); }
+        };
+        window.applyCustomSpending = function() {
+            spendingCustomStart = $('spendingStartDate').value;
+            spendingCustomEnd = $('spendingEndDate').value;
+            renderSpending();
+        };
+        function resetSpendingPeriod() {
+            document.querySelectorAll('#spendingPeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('#spendingPeriodFilter [data-period="all"]');
+            if (allBtn) allBtn.classList.add('active');
+            spendingPeriod = 'all'; spendingCustomStart = ''; spendingCustomEnd = '';
+            $('spendingCustomPeriod').style.display = 'none';
+        }
+        window.setSpendingSort = function(order, btn) {
+            spendingSortOrder = order;
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderSpending();
+        };
+        function renderSpending() {
+            const filtered = filterByPeriod(spendingPeriod, spendingCustomStart, spendingCustomEnd);
+            const catTotals = {};
+            expenseCategories.forEach(cat => catTotals[cat] = 0);
+            filtered.forEach(exp => {
+                if (exp.type === 'expense' && expenseCategories.includes(exp.category)) {
+                    catTotals[exp.category] += Math.abs(exp.amount);
+                }
+            });
+            let entries = Object.entries(catTotals).filter(([_, t]) => t > 0 || spendingPeriod !== 'all');
+            entries.sort((a, b) => spendingSortOrder === 'desc' ? b[1] - a[1] : a[1] - b[1]);
+            let html = '';
+            entries.forEach(([cat, total]) => {
+                const limit = categoryLimits[cat] || 0;
+                const percent = limit > 0 ? Math.min(100, (total / limit) * 100).toFixed(0) : 0;
+                html += `<div class="spending-card">
+                    <span class="cat-name">${cat}</span>
+                    <span class="cat-amount">${total.toFixed(2)} ₽</span>
+                    ${limit > 0 ? `<div class="progress-bar"><div class="progress-fill" style="width:${percent}%;"></div></div><div style="font-size:12px;color:#888;margin-top:4px;">Лимит: ${limit.toFixed(2)} ₽ (${percent}%)</div>` : ''}
+                </div>`;
+            });
+            spendingList.innerHTML = html;
+        }
+
+        // Планирование
+        window.switchPlanTab = function(tab, btn) {
+            currentPlanTab = tab;
+            document.querySelectorAll('.plan-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            $('planAverageTab').style.display = tab === 'average' ? 'block' : 'none';
+            $('planPiggyTab').style.display = tab === 'piggy' ? 'block' : 'none';
+            $('planForecastTab').style.display = tab === 'forecast' ? 'block' : 'none';
+
+            if (tab === 'average') { resetAveragePeriod(); renderAverage(); }
+            if (tab === 'piggy') renderPiggyBanks();
+            if (tab === 'forecast') calculateForecast();
+        };
+
+        // Средний чек
+        window.setAveragePeriod = function(period, btn) {
+            document.querySelectorAll('#averagePeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            averagePeriod = period;
+            $('averageCustomPeriod').style.display = period === 'custom' ? 'flex' : 'none';
+            if (period !== 'custom') { averageCustomStart = ''; averageCustomEnd = ''; renderAverage(); }
+        };
+        window.applyCustomAverage = function() {
+            averageCustomStart = $('averageStartDate').value;
+            averageCustomEnd = $('averageEndDate').value;
+            renderAverage();
+        };
+        function resetAveragePeriod() {
+            document.querySelectorAll('#averagePeriodFilter .period-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('#averagePeriodFilter [data-period="all"]');
+            if (allBtn) allBtn.classList.add('active');
+            averagePeriod = 'all'; averageCustomStart = ''; averageCustomEnd = '';
+            $('averageCustomPeriod').style.display = 'none';
+        }
+        function renderAverage() {
+            const filtered = filterByPeriod(averagePeriod, averageCustomStart, averageCustomEnd);
+            const catStats = {};
+            expenseCategories.forEach(cat => { catStats[cat] = { total: 0, count: 0 }; });
+            filtered.forEach(exp => {
+                if (exp.type === 'expense' && expenseCategories.includes(exp.category)) {
+                    catStats[exp.category].total += Math.abs(exp.amount);
+                    catStats[exp.category].count++;
+                }
+            });
+            let html = '';
+            for (const [cat, stats] of Object.entries(catStats)) {
+                if (stats.count > 0) {
+                    const avg = stats.total / stats.count;
+                    html += `<div class="spending-card"><span class="cat-name">${cat} <small style="color:#888;">(${stats.count} опер.)</small></span><span class="cat-amount" style="color:#2196F3;">≈ ${avg.toFixed(2)} ₽</span></div>`;
+                }
+            }
+            averageList.innerHTML = html;
+        }
+
+        // Копилки
+        function renderPiggyBanks() {
+            let html = piggyBanks.map((pig, idx) => {
+                const percent = Math.min(100, (pig.current / pig.target) * 100).toFixed(0);
+                return `<div class="piggy-card">
+                    <div class="piggy-header"><span class="piggy-name">${pig.name}</span>
+                        <div class="piggy-actions">
+                            <button onclick="editPiggy(${idx})">✎</button>
+                            <button onclick="deletePiggy(${idx})">✕</button>
+                        </div>
+                    </div>
+                    <div class="piggy-bar"><div class="piggy-fill" style="width:${percent}%;"></div></div>
+                    <div class="piggy-stats"><span>${pig.current.toFixed(2)} ₽ / ${pig.target.toFixed(2)} ₽</span><span>${percent}%</span></div>
+                </div>`;
+            }).join('');
+            piggyList.innerHTML = html;
+        }
+        window.openAddPiggyModal = function() {
+            editPiggyId = null;
+            piggyModalTitle.textContent = 'Новая копилка';
+            piggyName.value = '';
+            piggyTarget.value = '';
+            piggyCurrent.value = '0';
+            piggyModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.editPiggy = function(index) {
+            editPiggyId = index;
+            const pig = piggyBanks[index];
+            piggyModalTitle.textContent = 'Редактировать копилку';
+            piggyName.value = pig.name;
+            piggyTarget.value = pig.target;
+            piggyCurrent.value = pig.current;
+            piggyModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.deletePiggy = function(index) {
+            if (confirm('Удалить копилку?')) {
+                piggyBanks.splice(index, 1);
+                localStorage.setItem(STORAGE.piggyBanks, JSON.stringify(piggyBanks));
+                renderPiggyBanks();
+            }
+        };
+        window.savePiggy = function() {
+            const name = piggyName.value.trim();
+            const target = parseFloat(piggyTarget.value);
+            const current = parseFloat(piggyCurrent.value) || 0;
+            if (!name || isNaN(target) || target <= 0) return alert('Введите название и цель');
+            const pig = { name, target, current };
+            if (editPiggyId !== null) piggyBanks[editPiggyId] = pig;
+            else piggyBanks.push(pig);
+            localStorage.setItem(STORAGE.piggyBanks, JSON.stringify(piggyBanks));
+            closePiggyModal();
+            renderPiggyBanks();
+        };
+        window.closePiggyModal = function() {
+            piggyModal.classList.remove('active');
+            modalOverlay.classList.remove('active');
+            editPiggyId = null;
+        };
+
+        // Прогноз
+        function calculateForecast() {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const months = [];
+            for (let i = 1; i <= 3; i++) {
+                let m = currentMonth - i;
+                let y = currentYear;
+                if (m < 0) { m += 12; y--; }
+                months.push({ year: y, month: m });
+            }
+            const monthData = months.map(({ year, month }) => {
+                const start = new Date(year, month, 1);
+                const end = new Date(year, month + 1, 0);
+                const exps = expenses.filter(e => {
+                    const d = new Date(e.date);
+                    return d >= start && d <= end;
+                });
+                const income = exps.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+                const expense = exps.filter(e => e.type === 'expense').reduce((s, e) => s + Math.abs(e.amount), 0);
+                return { income, expense, days: new Date(year, month + 1, 0).getDate() };
+            }).filter(m => m.income > 0 || m.expense > 0);
+
+            if (monthData.length === 0) {
+                forecastBlock.innerHTML = '<div class="summary-item">Недостаточно данных для прогноза</div>';
+                return;
+            }
+
+            const totalIncome = monthData.reduce((s, m) => s + m.income, 0);
+            const totalExpense = monthData.reduce((s, m) => s + m.expense, 0);
+            const totalDays = monthData.reduce((s, m) => s + m.days, 0);
+            const avgIncomePerDay = totalIncome / totalDays;
+            const avgExpensePerDay = totalExpense / totalDays;
+            const today = now.getDate();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const remainingDays = daysInMonth - today + 1;
+            const currentBalance = getMoneyBalance();
+            const forecastBalance = currentBalance + (avgIncomePerDay - avgExpensePerDay) * remainingDays;
+
+            forecastBlock.innerHTML = `
+                <div class="summary-item"><div class="summary-label">Средний доход в день</div><div class="summary-value positive">+${avgIncomePerDay.toFixed(2)} ₽</div></div>
+                <div class="summary-item"><div class="summary-label">Средний расход в день</div><div class="summary-value negative">−${avgExpensePerDay.toFixed(2)} ₽</div></div>
+                <div class="summary-item"><div class="summary-label">Осталось дней</div><div class="summary-value">${remainingDays}</div></div>
+                <div class="summary-item"><div class="summary-label">Прогноз на конец месяца</div><div class="summary-value ${forecastBalance >= 0 ? 'positive' : 'negative'}">${forecastBalance.toFixed(2)} ₽</div></div>
+            `;
+        }
+
+        // Категории с лимитами
+        window.switchCatType = function(type, btn) {
+            currentCatManageType = type;
+            document.querySelectorAll('.cat-type-option').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderCatTiles();
+        };
+        function renderCatTiles() {
+            const list = currentCatManageType === 'expense' ? expenseCategories : incomeCategories;
+            catTiles.innerHTML = list.map(cat => {
+                const limit = currentCatManageType === 'expense' ? (categoryLimits[cat] || '') : '';
+                return `<div class="cat-tile">
+                    <span>${cat}</span>
+                    <div class="cat-actions">
+                        <button class="edit-cat" onclick="openEditCategory('${currentCatManageType}', '${cat}')">✎</button>
+                        <button class="delete-cat" onclick="deleteCategory('${currentCatManageType}', '${cat}')">✕</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.openAddCategoryModal = function() {
+            newCatName.value = '';
+            newCatLimit.value = '';
+            addCategoryModalTitle.textContent = 'Новая категория';
+            addCategoryModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.closeAddCategoryModal = function() {
+            addCategoryModal.classList.remove('active');
+            modalOverlay.classList.remove('active');
+        };
+        window.addCategory = function() {
+            const name = newCatName.value.trim();
+            if (!name) return;
+            const list = currentCatManageType === 'expense' ? expenseCategories : incomeCategories;
+            if (list.includes(name)) { alert('Уже существует'); return; }
+            list.push(name);
+            if (currentCatManageType === 'expense') {
+                const limit = parseFloat(newCatLimit.value);
+                if (!isNaN(limit) && limit >= 0) categoryLimits[name] = limit;
+            }
+            localStorage.setItem(currentCatManageType === 'expense' ? STORAGE.expenseCats : STORAGE.incomeCats, JSON.stringify(list));
+            if (currentCatManageType === 'expense') expenseCategories = list; else incomeCategories = list;
+            localStorage.setItem(STORAGE.limits, JSON.stringify(categoryLimits));
+            closeAddCategoryModal();
+            renderCatTiles();
+            if (homeScreen.style.display === 'block') renderCategories();
+        };
+        window.openEditCategory = function(type, oldName) {
+            editingCategory = { type, oldName };
+            editCatName.value = oldName;
+            const limit = type === 'expense' ? (categoryLimits[oldName] || '') : '';
+            editCatLimit.value = limit;
+            editCategoryModal.classList.add('active');
+            modalOverlay.classList.add('active');
+        };
+        window.closeEditCategoryModal = function() {
+            editCategoryModal.classList.remove('active');
+            modalOverlay.classList.remove('active');
+            editingCategory = null;
+        };
+        window.saveEditCategory = function() {
+            if (!editingCategory) return;
+            const { type, oldName } = editingCategory;
+            const newName = editCatName.value.trim();
+            if (!newName) return;
+            const list = type === 'expense' ? expenseCategories : incomeCategories;
+            const idx = list.indexOf(oldName);
+            if (idx === -1) return;
+            if (newName !== oldName && list.includes(newName)) { alert('Уже существует'); return; }
+            list[idx] = newName;
+            if (type === 'expense') {
+                const oldLimit = categoryLimits[oldName];
+                if (oldLimit !== undefined) delete categoryLimits[oldName];
+                const limit = parseFloat(editCatLimit.value);
+                if (!isNaN(limit) && limit >= 0) categoryLimits[newName] = limit;
+            }
+            expenses.forEach(e => {
+                if (e.type === type && e.category === oldName) e.category = newName;
+            });
+            localStorage.setItem(type === 'expense' ? STORAGE.expenseCats : STORAGE.incomeCats, JSON.stringify(list));
+            localStorage.setItem(STORAGE.expenses, JSON.stringify(expenses));
+            localStorage.setItem(STORAGE.limits, JSON.stringify(categoryLimits));
+            if (type === 'expense') expenseCategories = list; else incomeCategories = list;
+            closeEditCategoryModal();
+            renderCatTiles();
+            if (homeScreen.style.display === 'block') renderCategories();
+            saveAndUpdate();
+        };
+        window.deleteCategory = function(type, name) {
+            const list = type === 'expense' ? expenseCategories : incomeCategories;
+            const idx = list.indexOf(name);
+            if (idx === -1) return;
+            if (!confirm(`Удалить категорию "${name}"?`)) return;
+            list.splice(idx, 1);
+            if (type === 'expense') delete categoryLimits[name];
+            localStorage.setItem(type === 'expense' ? STORAGE.expenseCats : STORAGE.incomeCats, JSON.stringify(list));
+            localStorage.setItem(STORAGE.limits, JSON.stringify(categoryLimits));
+            if (type === 'expense') expenseCategories = list; else incomeCategories = list;
+            renderCatTiles();
+            if (homeScreen.style.display === 'block') renderCategories();
+        };
+
+        // Инициализация
+        updateAllBalances();
+        renderCategories();
+        amountInput.focus();
+        updateTopAction();
+        checkStorageQuota();
+    })();
+</script>
+</body>
+</html>
